@@ -229,6 +229,7 @@ nav{flex:1;padding:0 10px;overflow-y:auto}
 .ttb.ae{background:var(--danger-l);color:var(--danger);border-color:var(--danger)}
 .ttb.ai{background:var(--accent-l);color:var(--accent-d);border-color:var(--accent)}
 .ttb.at{background:var(--blue-l);color:var(--blue);border-color:var(--blue)}
+.hide-field{display:none!important}
 .empty{text-align:center;padding:28px 14px;color:var(--text3);font-size:13px}
 .transfer-arrow{text-align:center;font-size:22px;color:var(--blue);padding:4px 0}
 input[type=color]{height:36px;padding:2px 4px;cursor:pointer;border-radius:7px}
@@ -490,7 +491,7 @@ input[type=color]{height:36px;padding:2px 4px;cursor:pointer;border-radius:7px}
     <div class="f"><label>Conta</label><select id="tx-acc"></select></div>
     <div class="f"><label>Descrição</label><input type="text" id="tx-desc" placeholder="Ex: Supermercado, Salário..."></div>
     <div class="f"><label>Valor (€)</label><input type="number" id="tx-val" min="0" step="0.01" placeholder="0,00"></div>
-    <div class="f"><label>Categoria</label>
+    <div class="f" id="tx-cat-field"><label>Categoria</label>
       <select id="tx-cat">
         <option value="Alimentação">🛒 Alimentação</option><option value="Transporte">🚗 Transporte</option>
         <option value="Habitação">🏠 Habitação</option><option value="Saúde">💊 Saúde</option>
@@ -561,6 +562,29 @@ input[type=color]{height:36px;padding:2px 4px;cursor:pointer;border-radius:7px}
     </div>
     <div class="f"><label>Limite mensal (€)</label><input type="number" id="bud-val" min="0" step="1" placeholder="Ex: 300"></div>
     <div class="mact"><button class="bcan" onclick="closeMo('mo-bud')">Cancelar</button><button class="bpri" onclick="saveBud()">Guardar</button></div>
+  </div>
+</div>
+
+
+<div class="mo" id="mo-acc-edit">
+  <div class="mbox">
+    <div class="mt">Editar conta</div>
+    <div class="f"><label>Nome</label><input type="text" id="acc-edit-name" placeholder="Nome da conta"></div>
+    <div class="f"><label>Tipo</label>
+      <select id="acc-edit-type">
+        <option value="checking">💳 Conta corrente</option><option value="savings">🏦 Poupança</option>
+        <option value="cash">💵 Dinheiro</option><option value="investment">📈 Investimento</option>
+        <option value="credit">💳 Cartão crédito</option><option value="other">🔹 Outro</option>
+      </select>
+    </div>
+    <div class="f"><label>Saldo inicial (€)</label><input type="number" id="acc-edit-bal" placeholder="0,00" step="0.01"></div>
+    <div class="f"><label>Cor</label><input type="color" id="acc-edit-color" value="#1D9E75"></div>
+    <input type="hidden" id="acc-edit-id">
+    <div style="font-size:12px;color:var(--text3);background:#f8f8f6;border-radius:8px;padding:10px;margin-bottom:4px">
+      <i class="ti ti-info-circle" style="font-size:14px;vertical-align:-2px"></i>
+      Alterar o saldo inicial ajusta o ponto de partida da conta sem apagar transações existentes.
+    </div>
+    <div class="mact"><button class="bcan" onclick="closeMo('mo-acc-edit')">Cancelar</button><button class="bpri" onclick="saveAccEdit()">Guardar alterações</button></div>
   </div>
 </div>
 
@@ -858,7 +882,10 @@ function renderAccGrid(){
     <div class="acc-name">${a.name}</div>
     <div class="acc-bal">${fmt(accBal(a.id))}</div>
     <div class="acc-sub">${ACTLBL[a.type]||''}</div>
-    <button class="acc-del" onclick="deleteAcc('${a.id}')"><i class="ti ti-trash"></i></button>
+    <div style="position:absolute;bottom:8px;right:8px;display:flex;gap:4px">
+      <button class="acc-del" onclick="openAccEdit('${a.id}')" title="Editar"><i class="ti ti-edit"></i></button>
+      <button class="acc-del" onclick="deleteAcc('${a.id}')" title="Eliminar"><i class="ti ti-trash"></i></button>
+    </div>
   </div>`).join('')+'<div class="acc-add" onclick="openAccModal()"><i class="ti ti-plus"></i>Nova conta</div>';
 }
 function renderAccounts(){
@@ -994,11 +1021,17 @@ function closeFab(){fabOpen=false;document.getElementById('fab-acts').style.disp
 
 // ── TX MODAL ──
 function openTx(type){closeFab();setType(type);document.getElementById('tx-date').value=today();document.getElementById('tx-desc').value='';document.getElementById('tx-val').value='';populateAccSelects();document.getElementById('mo-tx').classList.add('open');}
-function setType(t){S.curType=t;document.getElementById('tb-exp').className='ttb'+(t==='expense'?' ae':'');document.getElementById('tb-inc').className='ttb'+(t==='income'?' ai':'');}
+function setType(t){
+  S.curType=t;
+  document.getElementById('tb-exp').className='ttb'+(t==='expense'?' ae':'');
+  document.getElementById('tb-inc').className='ttb'+(t==='income'?' ai':'');
+  const catField=document.getElementById('tx-cat-field');
+  if(catField) catField.classList.toggle('hide-field', t==='income');
+}
 function saveTx(){
   const desc=document.getElementById('tx-desc').value.trim();
   const val=parseFloat(document.getElementById('tx-val').value);
-  const cat=document.getElementById('tx-cat').value;
+  const cat=S.curType==='income'?'Receita':document.getElementById('tx-cat').value;
   const date=document.getElementById('tx-date').value;
   const acc=document.getElementById('tx-acc').value;
   if(!desc||!val||val<=0||!date||!acc){notify('⚠️ Preenche todos os campos');return;}
@@ -1052,6 +1085,27 @@ function saveRec(){
   if(!name||!val||val<=0){notify('⚠️ Preenche todos os campos');return;}
   S.recurring.push({id:uid(),name,type:S.recType,account:acc,amount:val,category:cat,freq,day});
   closeMo('mo-rec');processRecurring();persistData();updateAll();notify('✅ Recorrente guardado');
+}
+function openAccEdit(id){
+  const a=getAcc(id);
+  document.getElementById('acc-edit-id').value=id;
+  document.getElementById('acc-edit-name').value=a.name;
+  document.getElementById('acc-edit-type').value=a.type;
+  document.getElementById('acc-edit-bal').value=parseFloat(a.initialBalance||0).toFixed(2);
+  document.getElementById('acc-edit-color').value=a.color||'#1D9E75';
+  document.getElementById('mo-acc-edit').classList.add('open');
+}
+function saveAccEdit(){
+  const id=document.getElementById('acc-edit-id').value;
+  const name=document.getElementById('acc-edit-name').value.trim();
+  const type=document.getElementById('acc-edit-type').value;
+  const bal=parseFloat(document.getElementById('acc-edit-bal').value||0);
+  const color=document.getElementById('acc-edit-color').value;
+  if(!name){notify('⚠️ Dá um nome à conta');return;}
+  const idx=S.accounts.findIndex(a=>a.id===id);
+  if(idx===-1){notify('⚠️ Conta não encontrada');return;}
+  S.accounts[idx]={...S.accounts[idx],name,type,initialBalance:bal,color};
+  closeMo('mo-acc-edit');persistData();updateAll();notify('✅ Conta atualizada');
 }
 function delRec(id){
   S.recurring=S.recurring.filter(r=>r.id!==id);
