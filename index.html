@@ -541,6 +541,7 @@ input[type=color]{height:36px;padding:2px 4px;cursor:pointer;border-radius:7px}
       <select id="rec-freq"><option value="monthly">Mensal</option><option value="weekly">Semanal</option><option value="annual">Anual</option></select>
     </div>
     <div class="f"><label>Dia de geração (1–28)</label><input type="number" id="rec-day" min="1" max="28" value="1"></div>
+    <div class="f"><label>Data de início</label><input type="date" id="rec-start"></div>
     <div class="mact"><button class="bcan" onclick="closeMo('mo-rec')">Cancelar</button><button class="bpri" onclick="saveRec()">Guardar</button></div>
   </div>
 </div>
@@ -757,19 +758,27 @@ function getMonthTx(){
 // ── RECURRING AUTO-GENERATE ──
 function processRecurring(){
   const now=new Date();
+  now.setHours(0,0,0,0);
   let changed=false;
   S.recurring.forEach(r=>{
-    let start=new Date(now.getFullYear(),now.getMonth()-6,1);
-    let cursor=new Date(start.getFullYear(),start.getMonth(),1);
+    // Respect startDate — never generate before it
+    const startDate = r.startDate ? new Date(r.startDate) : new Date(now.getFullYear(),now.getMonth()-6,1);
+    startDate.setHours(0,0,0,0);
+    // Start cursor from the beginning of the start month
+    let cursor=new Date(startDate.getFullYear(),startDate.getMonth(),1);
     const end=new Date(now.getFullYear(),now.getMonth(),now.getDate());
     while(cursor<=end){
       const maxDay=new Date(cursor.getFullYear(),cursor.getMonth()+1,0).getDate();
       const genDay=Math.min(r.day,maxDay);
       const dateStr=cursor.getFullYear()+'-'+String(cursor.getMonth()+1).padStart(2,'0')+'-'+String(genDay).padStart(2,'0');
       const genDate=new Date(dateStr);
-      if(genDate<=now){
-        const exists=S.transactions.some(t=>t.recurringId===r.id&&t.date===dateStr);
-        if(!exists){
+      genDate.setHours(0,0,0,0);
+      // Only generate if: date >= startDate AND date <= today
+      if(genDate>=startDate && genDate<=now){
+        // Check not manually deleted (skipDates) and not already exists
+        const skipped = r.skipDates && r.skipDates.includes(dateStr);
+        const exists = S.transactions.some(t=>t.recurringId===r.id&&t.date===dateStr);
+        if(!skipped && !exists){
           S.transactions.push({id:uid(),type:r.type,account:r.account,desc:r.name+' (auto)',amount:r.amount,category:r.category,date:dateStr,recurringId:r.id,auto:true});
           changed=true;
         }
@@ -945,7 +954,7 @@ function renderRecurring(){
     <div class="txico" style="background:${(CATCOL[r.category]||'#888')+'22'}">${catEmoji(r.category)}</div>
     <div class="recin">
       <div class="recn">${r.name}<span class="badge ${r.freq==='monthly'?'bm':r.freq==='weekly'?'bw':'ba'}">${r.freq==='monthly'?'Mensal':r.freq==='weekly'?'Semanal':'Anual'}</span></div>
-      <div class="recd">Dia ${r.day} · ${getAcc(r.account).name} · ${r.category} · ${r.type==='income'?'Receita':'Gasto'}</div>
+      <div class="recd">Dia ${r.day} · desde ${r.startDate?fmtDate(r.startDate):'sempre'} · ${getAcc(r.account).name} · ${r.category}</div>
     </div>
     <div class="reca" style="color:${r.type==='income'?'var(--accent)':'var(--danger)'}">${fmt(r.amount)}</div>
     <button class="delbtn" onclick="delRec('${r.id}')"><i class="ti ti-trash"></i></button>
@@ -1047,7 +1056,26 @@ function saveTx(){
   S.transactions.push({id:uid(),type:S.curType||'expense',account:acc,desc,amount:val,category:cat,date});
   closeMo('mo-tx');persistData();updateAll();notify('✅ Guardado no Firebase');
 }
-function delTx(id){S.transactions=S.transactions.filter(t=>t.id!==id);persistData();updateAll();}
+function delTx(id, skipConfirm){
+  const tx = S.transactions.find(t=>t.id===id);
+  if(!tx) return;
+  // If it's an auto-generated recurring transaction, ask what to do
+  if(tx.auto && tx.recurringId && !skipConfirm){
+    const rec = S.recurring.find(r=>r.id===tx.recurringId);
+    const recName = rec ? rec.name : 'recorrente';
+    // Show options via confirm — simple approach
+    const onlyThis = confirm('Apagar só esta transação de "'+recName+'"?\n\nOK = Apagar só esta (não volta a ser gerada neste dia)\nCancelar = Não apagar');
+    if(!onlyThis) return;
+    // Add date to skipDates so it won't be regenerated
+    if(rec){
+      if(!rec.skipDates) rec.skipDates = [];
+      rec.skipDates.push(tx.date);
+    }
+  }
+  S.transactions = S.transactions.filter(t=>t.id!==id);
+  persistData();
+  updateAll();
+}
 
 // ── ACCOUNT MODAL ──
 function openAccModal(){populateAccSelects();document.getElementById('acc-name').value='';document.getElementById('acc-bal').value='';document.getElementById('mo-acc').classList.add('open');}
@@ -1082,7 +1110,7 @@ function doTransfer(){
 }
 
 // ── RECURRING MODAL ──
-function openRecModal(){setRecType('expense');populateAccSelects();populateCatSelects();document.getElementById('rec-name').value='';document.getElementById('rec-val').value='';document.getElementById('mo-rec').classList.add('open');}
+function openRecModal(){setRecType('expense');populateAccSelects();populateCatSelects();document.getElementById('rec-name').value='';document.getElementById('rec-val').value='';document.getElementById('rec-start').value=today();document.getElementById('mo-rec').classList.add('open');}
 function setRecType(t){S.recType=t;document.getElementById('rtb-exp').className='ttb'+(t==='expense'?' ae':'');document.getElementById('rtb-inc').className='ttb'+(t==='income'?' ai':'');}
 function saveRec(){
   const name=document.getElementById('rec-name').value.trim();
@@ -1092,7 +1120,8 @@ function saveRec(){
   const day=parseInt(document.getElementById('rec-day').value)||1;
   const acc=document.getElementById('rec-acc').value;
   if(!name||!val||val<=0){notify('⚠️ Preenche todos os campos');return;}
-  S.recurring.push({id:uid(),name,type:S.recType,account:acc,amount:val,category:cat,freq,day});
+  const startDate = document.getElementById('rec-start').value || today();
+  S.recurring.push({id:uid(),name,type:S.recType,account:acc,amount:val,category:cat,freq,day,startDate});
   closeMo('mo-rec');processRecurring();persistData();updateAll();notify('✅ Recorrente guardado');
 }
 function openAccEdit(id){
