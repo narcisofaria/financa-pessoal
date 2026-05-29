@@ -807,6 +807,11 @@ function updateMonthLabel(){
 function updateAll(){
   // Sync category colors to CATCOL
   if(S.categoryColors) Object.assign(CATCOL, S.categoryColors);
+  // Ensure categories exist
+  if(!S.categories || S.categories.length === 0){
+    S.categories = ['Alimentação','Transporte','Habitação','Saúde','Lazer','Educação','Vestuário','Salário','Freelance','Investimento','Outro'];
+  }
+  populateCatSelects();
   updateMonthLabel();
   if(currentPage==='dashboard')renderDash();
   else if(currentPage==='accounts'){renderAccGrid();renderAccounts();}
