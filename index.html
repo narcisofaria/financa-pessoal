@@ -1158,7 +1158,16 @@ function populateCatSelects() {
   });
 }
 
+let _prevModal = null;
 function openCatModal() {
+  // Remember which modal was open
+  _prevModal = null;
+  ['mo-tx','mo-rec','mo-bud'].forEach(id => {
+    if(document.getElementById(id).classList.contains('open')) {
+      _prevModal = id;
+      document.getElementById(id).classList.remove('open');
+    }
+  });
   renderCatList();
   document.getElementById('cat-new-name').value = '';
   document.getElementById('mo-cat').classList.add('open');
@@ -1205,7 +1214,16 @@ function deleteCategory(name) {
   notify('🗑 Categoria eliminada');
 }
 
-function closeMo(id){document.getElementById(id).classList.remove('open');}
+function closeMo(id){
+  document.getElementById(id).classList.remove('open');
+  // Reopen previous modal if we came from one
+  if(id === 'mo-cat' && _prevModal) {
+    setTimeout(() => {
+      document.getElementById(_prevModal).classList.add('open');
+      _prevModal = null;
+    }, 50);
+  }
+}
 document.querySelectorAll('.mo').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
 document.getElementById('tr-date').value=today();
 </script>
