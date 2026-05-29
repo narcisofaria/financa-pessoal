@@ -491,7 +491,11 @@ input[type=color]{height:36px;padding:2px 4px;cursor:pointer;border-radius:7px}
     <div class="f"><label>Conta</label><select id="tx-acc"></select></div>
     <div class="f"><label>Descrição</label><input type="text" id="tx-desc" placeholder="Ex: Supermercado, Salário..."></div>
     <div class="f"><label>Valor (€)</label><input type="number" id="tx-val" min="0" step="0.01" placeholder="0,00"></div>
-    <div class="f" id="tx-cat-field"><label>Categoria <button onclick="openCatModal()" style="background:none;border:none;cursor:pointer;color:var(--accent);font-size:11px;padding:0 4px;font-family:var(--font)">+ nova</button></label>
+    <div class="f" id="tx-cat-field">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <label style="margin-bottom:0">Categoria</label>
+        <button type="button" onclick="event.preventDefault();event.stopPropagation();openCatModal()" style="background:var(--accent-l);border:none;cursor:pointer;color:var(--accent-d);font-size:11px;padding:3px 9px;border-radius:20px;font-family:var(--font);font-weight:500">+ nova categoria</button>
+      </div>
       <select id="tx-cat"></select>
     </div>
     <div class="f"><label>Data</label><input type="date" id="tx-date"></div>
@@ -526,7 +530,11 @@ input[type=color]{height:36px;padding:2px 4px;cursor:pointer;border-radius:7px}
     <div class="f"><label>Conta</label><select id="rec-acc"></select></div>
     <div class="f"><label>Nome</label><input type="text" id="rec-name" placeholder="Ex: Netflix, Ginásio, Salário..."></div>
     <div class="f"><label>Valor (€)</label><input type="number" id="rec-val" min="0" step="0.01" placeholder="0,00"></div>
-    <div class="f"><label>Categoria <button onclick="openCatModal()" style="background:none;border:none;cursor:pointer;color:var(--accent);font-size:11px;padding:0 4px;font-family:var(--font)">+ nova</button></label>
+    <div class="f">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <label style="margin-bottom:0">Categoria</label>
+        <button type="button" onclick="event.preventDefault();event.stopPropagation();openCatModal()" style="background:var(--accent-l);border:none;cursor:pointer;color:var(--accent-d);font-size:11px;padding:3px 9px;border-radius:20px;font-family:var(--font);font-weight:500">+ nova categoria</button>
+      </div>
       <select id="rec-cat"></select>
     </div>
     <div class="f"><label>Frequência</label>
@@ -540,7 +548,11 @@ input[type=color]{height:36px;padding:2px 4px;cursor:pointer;border-radius:7px}
 <div class="mo" id="mo-bud">
   <div class="mbox">
     <div class="mt">Definir orçamento</div>
-    <div class="f"><label>Categoria <button onclick="openCatModal()" style="background:none;border:none;cursor:pointer;color:var(--accent);font-size:11px;padding:0 4px;font-family:var(--font)">+ nova</button></label>
+    <div class="f">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <label style="margin-bottom:0">Categoria</label>
+        <button type="button" onclick="event.preventDefault();event.stopPropagation();openCatModal()" style="background:var(--accent-l);border:none;cursor:pointer;color:var(--accent-d);font-size:11px;padding:3px 9px;border-radius:20px;font-family:var(--font);font-weight:500">+ nova categoria</button>
+      </div>
       <select id="bud-cat"></select>
     </div>
     <div class="f"><label>Limite mensal (€)</label><input type="number" id="bud-val" min="0" step="1" placeholder="Ex: 300"></div>
