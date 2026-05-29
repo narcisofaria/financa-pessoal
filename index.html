@@ -877,17 +877,16 @@ function txRow(t){
 // ── ACCOUNTS PAGE ──
 function renderAccGrid(){
   const g=document.getElementById('accs-grid');if(!g)return;
-  g.innerHTML=S.accounts.map(a=>`<div class="acc-card" style="background:${a.color};color:#fff;display:flex;flex-direction:column">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
-      <div class="acc-name" style="margin-bottom:0">${a.name}</div>
-      <div style="font-size:18px;opacity:.5">${ACTICO[a.type]||'🔹'}</div>
+  g.innerHTML=S.accounts.map(a=>`<div class="acc-card" style="background:${a.color};color:#fff;display:flex;flex-direction:column;min-height:110px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <div style="font-size:12px;opacity:.85">${a.name}</div>
+      <div style="display:flex;gap:4px">
+        <button onclick="openAccEdit('${a.id}')" style="background:rgba(255,255,255,.25);border:none;border-radius:5px;color:#fff;width:26px;height:26px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center" title="Editar"><i class="ti ti-edit"></i></button>
+        <button onclick="deleteAcc('${a.id}')" style="background:rgba(255,255,255,.15);border:none;border-radius:5px;color:#fff;width:26px;height:26px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center" title="Eliminar"><i class="ti ti-trash"></i></button>
+      </div>
     </div>
-    <div class="acc-bal">${fmt(accBal(a.id))}</div>
-    <div class="acc-sub" style="margin-bottom:10px">${ACTLBL[a.type]||''}</div>
-    <div style="display:flex;gap:6px;margin-top:auto">
-      <button onclick="openAccEdit('${a.id}')" style="flex:1;background:rgba(255,255,255,.2);border:none;border-radius:6px;color:#fff;padding:5px 0;cursor:pointer;font-size:12px;font-family:var(--font);display:flex;align-items:center;justify-content:center;gap:4px"><i class="ti ti-edit" style="font-size:13px"></i> Editar</button>
-      <button onclick="deleteAcc('${a.id}')" style="background:rgba(255,255,255,.15);border:none;border-radius:6px;color:#fff;padding:5px 8px;cursor:pointer;font-size:13px"><i class="ti ti-trash"></i></button>
-    </div>
+    <div style="font-size:20px;font-weight:600;font-family:var(--font-mono);margin-bottom:2px">${fmt(accBal(a.id))}</div>
+    <div style="font-size:11px;opacity:.65">${ACTLBL[a.type]||''}</div>
   </div>`).join('')+'<div class="acc-add" onclick="openAccModal()"><i class="ti ti-plus"></i>Nova conta</div>';
 }
 function renderAccounts(){
