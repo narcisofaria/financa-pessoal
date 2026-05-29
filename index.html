@@ -1064,7 +1064,7 @@ function delTx(id, skipConfirm){
     const rec = S.recurring.find(r=>r.id===tx.recurringId);
     const recName = rec ? rec.name : 'recorrente';
     // Show options via confirm — simple approach
-    const onlyThis = confirm('Apagar só esta transação de "'+recName+'"?\n\nOK = Apagar só esta (não volta a ser gerada neste dia)\nCancelar = Não apagar');
+    const onlyThis = confirm('Esta transação é recorrente, não vai ser criada novamente neste dia.');
     if(!onlyThis) return;
     // Add date to skipDates so it won't be regenerated
     if(rec){
