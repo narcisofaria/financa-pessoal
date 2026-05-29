@@ -1209,5 +1209,24 @@ function closeMo(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.mo').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
 document.getElementById('tr-date').value=today();
 </script>
+
+<!-- MODAL: CATEGORIAS -->
+<div class="mo" id="mo-cat">
+  <div class="mbox">
+    <div class="mt">Gerir categorias</div>
+    <div class="f">
+      <label>Nova categoria</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="cat-new-name" placeholder="Ex: Animais, Viagens..." style="flex:1">
+        <input type="color" id="cat-new-color" value="#7F77DD" style="width:44px;height:38px;padding:2px 3px;cursor:pointer;border-radius:7px">
+      </div>
+    </div>
+    <button class="bpri" style="width:100%;margin-bottom:18px" onclick="addCategory()"><i class="ti ti-plus"></i> Adicionar categoria</button>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:8px;font-weight:500;text-transform:uppercase;letter-spacing:.05em">Categorias existentes</div>
+    <div id="cat-list-modal" style="max-height:260px;overflow-y:auto"></div>
+    <div class="mact" style="margin-top:14px"><button class="bcan" style="width:100%" onclick="closeMo('mo-cat')">Fechar</button></div>
+  </div>
+</div>
+
 </body>
 </html>
