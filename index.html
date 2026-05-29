@@ -2,6 +2,47 @@
 <html lang="pt">
 <head>
 <meta charset="utf-8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Finança">
+<meta name="application-name" content="Finança Pessoal">
+<meta name="msapplication-TileColor" content="#1D9E75">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.png">
+<script>
+if("serviceWorker" in navigator){
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(()=>{});
+  });
+}
+// PWA install prompt
+let deferredPrompt;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  // Show install button after login
+  setTimeout(() => {
+    const btn = document.getElementById("install-btn");
+    if(btn) btn.style.display = "flex";
+  }, 3000);
+});
+window.addEventListener("appinstalled", () => {
+  const btn = document.getElementById("install-btn");
+  if(btn) btn.style.display = "none";
+  deferredPrompt = null;
+});
+window.installApp = async function() {
+  if(!deferredPrompt) {
+    alert("Para instalar:\n1. Toca nos ⋮ (três pontos)\n2. Seleciona \"Adicionar ao ecrã inicial\"\n3. Confirma");
+    return;
+  }
+  deferredPrompt.prompt();
+  const result = await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  document.getElementById("install-btn").style.display = "none";
+};
+</script>
+
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -206,6 +247,11 @@ input[type=color]{height:36px;padding:2px 4px;cursor:pointer;border-radius:7px}
 .google-btn svg{width:18px;height:18px;flex-shrink:0}
 
 /* NOTIFY */
+
+.install-btn{display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;border:none;border-radius:25px;padding:12px 22px;font-size:13px;font-weight:500;cursor:pointer;align-items:center;gap:8px;box-shadow:0 4px 16px rgba(29,158,117,.4);z-index:300;white-space:nowrap;font-family:var(--font)}
+.install-btn i{font-size:16px}
+@media(min-width:769px){.install-btn{bottom:30px}}
+
 .notify{position:fixed;top:16px;right:16px;background:var(--text);color:#fff;padding:10px 16px;border-radius:9px;font-size:13px;z-index:999;opacity:0;transition:opacity .25s;pointer-events:none;max-width:300px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
 .notify.show{opacity:1}
 
@@ -426,6 +472,12 @@ input[type=color]{height:36px;padding:2px 4px;cursor:pointer;border-radius:7px}
   </div>
   <button class="fab mf" onclick="toggleFab()" id="mfab"><i class="ti ti-plus" id="fab-ico"></i></button>
 </div>
+
+
+<!-- INSTALL BUTTON -->
+<button class="install-btn" id="install-btn" onclick="installApp()">
+  <i class="ti ti-download"></i> Instalar app no telemóvel
+</button>
 
 <!-- MODALS -->
 <div class="mo" id="mo-tx">
