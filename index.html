@@ -1038,7 +1038,7 @@ function toggleFab(){fabOpen=!fabOpen;document.getElementById('fab-acts').style.
 function closeFab(){fabOpen=false;document.getElementById('fab-acts').style.display='none';document.getElementById('fab-ico').className='ti ti-plus';}
 
 // ── TX MODAL ──
-function openTx(type){closeFab();setType(type);document.getElementById('tx-date').value=today();document.getElementById('tx-desc').value='';document.getElementById('tx-val').value='';populateAccSelects();populateCatSelects();document.getElementById('mo-tx').classList.add('open');}
+function openTx(type){closeFab();setType(type);document.getElementById('tx-date').value=today();document.getElementById('tx-desc').value='';document.getElementById('tx-val').value='';populateAccSelects();populateCatSelects();document.getElementById('tx-cat').value='';document.getElementById('mo-tx').classList.add('open');}
 function setType(t){
   S.curType=t;
   document.getElementById('tb-exp').className='ttb'+(t==='expense'?' ae':'');
@@ -1053,8 +1053,9 @@ function saveTx(){
   const date=document.getElementById('tx-date').value;
   const acc=document.getElementById('tx-acc').value;
   if(!val||val<=0||!date||!acc){notify('⚠️ Preenche o valor e a data');return;}
+  if(S.curType!=='income' && !cat){notify('⚠️ Seleciona uma categoria');return;}
   const finalDesc = desc || (S.curType==='income' ? 'Receita' : 'Despesa');
-  const finalCat = S.curType==='income' ? 'Receita' : (cat || '');
+  const finalCat = S.curType==='income' ? 'Receita' : cat;
   S.transactions.push({id:uid(),type:S.curType||'expense',account:acc,desc:finalDesc,amount:val,category:finalCat,date});
   closeMo('mo-tx');persistData();updateAll();notify('✅ Guardado no Firebase');
 }
@@ -1185,7 +1186,7 @@ function populateCatSelects() {
     if(!el) return;
     const cur = el.value;
     // tx-cat gets an empty first option; others don't
-    const emptyOpt = id === 'tx-cat' ? '<option value="">— sem categoria —</option>' : '';
+    const emptyOpt = id === 'tx-cat' ? '<option value="" disabled selected>Seleciona uma categoria...</option>' : '';
     el.innerHTML = emptyOpt + cats.map(c => `<option value="${c}">${getCatEmoji(c)} ${c}</option>`).join('');
     if(cats.includes(cur)) el.value = cur;
     else if(id === 'tx-cat') el.value = '';
