@@ -1052,8 +1052,10 @@ function saveTx(){
   const cat=S.curType==='income'?'Receita':document.getElementById('tx-cat').value;
   const date=document.getElementById('tx-date').value;
   const acc=document.getElementById('tx-acc').value;
-  if(!desc||!val||val<=0||!date||!acc){notify('⚠️ Preenche todos os campos');return;}
-  S.transactions.push({id:uid(),type:S.curType||'expense',account:acc,desc,amount:val,category:cat,date});
+  if(!val||val<=0||!date||!acc){notify('⚠️ Preenche o valor e a data');return;}
+  const finalDesc = desc || (S.curType==='income' ? 'Receita' : 'Despesa');
+  const finalCat = S.curType==='income' ? 'Receita' : (cat || '');
+  S.transactions.push({id:uid(),type:S.curType||'expense',account:acc,desc:finalDesc,amount:val,category:finalCat,date});
   closeMo('mo-tx');persistData();updateAll();notify('✅ Guardado no Firebase');
 }
 function delTx(id, skipConfirm){
@@ -1182,8 +1184,11 @@ function populateCatSelects() {
     const el = document.getElementById(id);
     if(!el) return;
     const cur = el.value;
-    el.innerHTML = cats.map(c => `<option value="${c}">${getCatEmoji(c)} ${c}</option>`).join('');
+    // tx-cat gets an empty first option; others don't
+    const emptyOpt = id === 'tx-cat' ? '<option value="">— sem categoria —</option>' : '';
+    el.innerHTML = emptyOpt + cats.map(c => `<option value="${c}">${getCatEmoji(c)} ${c}</option>`).join('');
     if(cats.includes(cur)) el.value = cur;
+    else if(id === 'tx-cat') el.value = '';
   });
 }
 
