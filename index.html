@@ -440,7 +440,10 @@ input[type=color]{height:36px;padding:2px 4px;cursor:pointer;border-radius:7px}
         <div class="card">
           <div class="ch">
             <span class="ct" id="bud-detail-title">Janeiro 2026</span>
-            <button class="bsm" onclick="openBudModal()"><i class="ti ti-plus"></i> Adicionar categoria</button>
+            <div style="display:flex;gap:6px">
+              <button class="bsm" onclick="openCopyBudModal()"><i class="ti ti-copy"></i> Copiar para...</button>
+              <button class="bsm" onclick="openBudModal()"><i class="ti ti-plus"></i> Adicionar</button>
+            </div>
           </div>
           <!-- Chart: real vs budget -->
           <div id="bud-chart" style="margin-bottom:16px"></div>
@@ -1479,6 +1482,48 @@ function delBudCat(cat){
   persistData();renderBudget();
 }
 
+
+// ── COPY BUDGET ──
+const MONTHS_SHORT_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+function openCopyBudModal(){
+  const srcKey = getBudgetKey(budYear, budSelectedMonth);
+  const bud = getMonthBudget(budYear, budSelectedMonth);
+  if(!Object.keys(bud).length){ notify('⚠️ Este mês não tem orçamento para copiar'); return; }
+  document.getElementById('copy-bud-src').textContent = MONTHS_SHORT_PT[budSelectedMonth] + ' ' + budYear;
+  const container = document.getElementById('copy-bud-months');
+  container.innerHTML = MONTHS_SHORT_PT.map((m, mi) => {
+    if(mi === budSelectedMonth) return ''; // skip source month
+    return `<label style="display:flex;align-items:center;gap:7px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px">
+      <input type="checkbox" value="${mi}" style="width:16px;height:16px;cursor:pointer">
+      ${m}
+    </label>`;
+  }).join('');
+  document.getElementById('mo-copy-bud').classList.add('open');
+}
+
+function selectAllCopyMonths(){
+  document.querySelectorAll('#copy-bud-months input[type=checkbox]').forEach(cb => cb.checked = true);
+}
+function deselectAllCopyMonths(){
+  document.querySelectorAll('#copy-bud-months input[type=checkbox]').forEach(cb => cb.checked = false);
+}
+
+function applyCopyBudget(){
+  const srcBud = getMonthBudget(budYear, budSelectedMonth);
+  const selected = [...document.querySelectorAll('#copy-bud-months input[type=checkbox]:checked')].map(cb => parseInt(cb.value));
+  if(!selected.length){ notify('⚠️ Seleciona pelo menos um mês'); return; }
+  if(!S.annualBudgets) S.annualBudgets = {};
+  selected.forEach(mi => {
+    const key = getBudgetKey(budYear, mi);
+    S.annualBudgets[key] = {...srcBud};
+  });
+  closeMo('mo-copy-bud');
+  persistData();
+  renderBudget();
+  notify('✅ Orçamento copiado para ' + selected.length + ' mês(es)');
+}
+
 function closeMo(id){
   document.getElementById(id).classList.remove('open');
   // Reopen previous modal if we came from one
@@ -1508,6 +1553,27 @@ document.getElementById('tr-date').value=today();
     <div style="font-size:11px;color:var(--text2);margin-bottom:8px;font-weight:500;text-transform:uppercase;letter-spacing:.05em">Categorias existentes</div>
     <div id="cat-list-modal" style="max-height:260px;overflow-y:auto"></div>
     <div class="mact" style="margin-top:14px"><button class="bcan" style="width:100%" onclick="closeMo('mo-cat')">Fechar</button></div>
+  </div>
+</div>
+
+
+<!-- MODAL: COPIAR ORÇAMENTO -->
+<div class="mo" id="mo-copy-bud">
+  <div class="mbox">
+    <div class="mt">Copiar orçamento</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:16px">
+      Copia o orçamento de <strong id="copy-bud-src"></strong> para os meses selecionados.
+    </div>
+    <div style="font-size:11px;color:var(--text2);font-weight:500;margin-bottom:8px">Copiar para:</div>
+    <div id="copy-bud-months" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:16px"></div>
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <button class="bsm" onclick="selectAllCopyMonths()">Selecionar todos</button>
+      <button class="bsm" onclick="deselectAllCopyMonths()">Limpar</button>
+    </div>
+    <div class="mact">
+      <button class="bcan" onclick="closeMo('mo-copy-bud')">Cancelar</button>
+      <button class="bpri" onclick="applyCopyBudget()">Copiar</button>
+    </div>
   </div>
 </div>
 
