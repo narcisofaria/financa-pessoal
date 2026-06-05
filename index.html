@@ -324,6 +324,7 @@ input[type=color]{height:36px;padding:2px 4px;cursor:pointer;border-radius:7px}
       <div class="ns">gestão</div>
       <div class="ni" data-page="recurring"><i class="ti ti-refresh"></i> Recorrentes</div>
       <div class="ni" data-page="budget"><i class="ti ti-target"></i> Orçamentos</div>
+      <div class="ni" data-page="categories"><i class="ti ti-tag"></i> Categorias</div>
       <div class="ns">análise</div>
       <div class="ni" data-page="reports"><i class="ti ti-chart-bar"></i> Relatórios</div>
     </nav>
@@ -424,10 +425,51 @@ input[type=color]{height:36px;padding:2px 4px;cursor:pointer;border-radius:7px}
     <!-- BUDGET -->
     <div id="p-budget" class="page">
       <div class="ph">Orçamentos</div>
-      <div class="ps">Define limites de gastos por categoria</div>
+      <div class="ps">Define o orçamento mensal para cada mês do ano</div>
+      <!-- Year selector -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <button class="mbtn" onclick="chgBudYear(-1)"><i class="ti ti-chevron-left"></i></button>
+        <span style="font-size:15px;font-weight:500;color:var(--text)" id="bud-year-lbl">2026</span>
+        <button class="mbtn" onclick="chgBudYear(1)"><i class="ti ti-chevron-right"></i></button>
+        <span style="font-size:12px;color:var(--text3);margin-left:4px">Clica num mês para editar o orçamento</span>
+      </div>
+      <!-- 12-month grid -->
+      <div id="bud-year-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:18px"></div>
+      <!-- Monthly detail -->
+      <div id="bud-month-detail" style="display:none">
+        <div class="card">
+          <div class="ch">
+            <span class="ct" id="bud-detail-title">Janeiro 2026</span>
+            <button class="bsm" onclick="openBudModal()"><i class="ti ti-plus"></i> Adicionar categoria</button>
+          </div>
+          <!-- Chart: real vs budget -->
+          <div id="bud-chart" style="margin-bottom:16px"></div>
+          <!-- Category breakdown -->
+          <div id="bud-list"></div>
+        </div>
+        <div class="card" style="margin-top:14px">
+          <div class="ch"><span class="ct">Resumo do mês</span></div>
+          <div id="bud-status"></div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- CATEGORIES -->
+    <div id="p-categories" class="page">
+      <div class="ph">Categorias</div>
+      <div class="ps">Gere as tuas categorias de despesa</div>
       <div class="twocol">
-        <div class="card"><div class="ch"><span class="ct">Orçamentos</span><button class="bsm" onclick="openBudModal()"><i class="ti ti-plus"></i> Novo</button></div><div id="bud-list"></div></div>
-        <div class="card"><div class="ch"><span class="ct">Estado do mês</span></div><div id="bud-status"></div></div>
+        <div class="card">
+          <div class="ch"><span class="ct">Nova categoria</span></div>
+          <div class="f"><label>Nome</label><input type="text" id="cat-page-name" placeholder="Ex: Viagens, Animais..."></div>
+          <div class="f"><label>Cor</label><input type="color" id="cat-page-color" value="#7F77DD" style="height:40px"></div>
+          <button class="bpri" style="width:100%" onclick="addCategoryPage()"><i class="ti ti-plus"></i> Adicionar categoria</button>
+        </div>
+        <div class="card">
+          <div class="ch"><span class="ct">Categorias existentes</span></div>
+          <div id="cat-page-list"></div>
+        </div>
       </div>
     </div>
 
@@ -461,6 +503,7 @@ input[type=color]{height:36px;padding:2px 4px;cursor:pointer;border-radius:7px}
     <div class="bni" data-page="transactions"><i class="ti ti-list"></i>Movimentos</div>
     <div class="bni" data-page="recurring"><i class="ti ti-refresh"></i>Recorrentes</div>
     <div class="bni" data-page="reports"><i class="ti ti-chart-bar"></i>Relatórios</div>
+    <div class="bni" data-page="categories"><i class="ti ti-tag"></i>Categorias</div>
   </div>
 </nav>
 
@@ -674,6 +717,7 @@ async function loadData() {
       S.budgets         = d.budgets         || {};
       S.categories      = d.categories      || S.categories;
       S.categoryColors  = d.categoryColors  || {};
+      S.annualBudgets   = d.annualBudgets   || {};
     } else {
       // First time — seed default accounts
       S.accounts = [
@@ -717,6 +761,7 @@ async function persistNow() {
     budgets:         S.budgets,
     categories:      S.categories,
     categoryColors:  S.categoryColors || {},
+    annualBudgets:   S.annualBudgets  || {},
     updatedAt:       new Date().toISOString()
   });
 }
@@ -805,7 +850,8 @@ function go(id){
   if(id==='reports')renderReports();
   if(id==='accounts'){renderAccGrid();renderAccounts();}
   if(id==='recurring')renderRecurring();
-  if(id==='budget')renderBudget();
+  if(id==='budget'){budYear=S.year;renderBudget();}
+  if(id==='categories')renderCategoriesPage();
   if(id==='transactions')renderTxPage();
   if(id==='dashboard')renderDash();
   closeFab();
@@ -982,24 +1028,7 @@ function renderRecurring(){
 }
 
 // ── BUDGET ──
-function renderBudget(){
-  const txs=getMonthTx().filter(t=>t.type==='expense');
-  const cs={};txs.forEach(t=>{cs[t.category]=(cs[t.category]||0)+t.amount});
-  const bl=document.getElementById('bud-list'),bs=document.getElementById('bud-status');if(!bl)return;
-  const buds=Object.entries(S.budgets);
-  bl.innerHTML=buds.length?buds.map(([cat,lim])=>{
-    const sp=cs[cat]||0,pct=Math.min(100,Math.round(sp/lim*100));
-    const clr=sp>lim?'var(--danger)':sp>lim*.8?'var(--warn)':'var(--accent)';
-    return`<div class="budi"><div class="budh"><span class="budn">${catEmoji(cat)} ${cat}</span><div style="display:flex;align-items:center;gap:6px"><span class="budv">${fmt(sp)} / ${fmt(lim)}</span><button class="delbtn" onclick="delBud('${cat}')"><i class="ti ti-trash"></i></button></div></div><div class="budt"><div class="budf" style="width:${pct}%;background:${clr}"></div></div></div>`;
-  }).join(''):'<div class="empty">Sem orçamentos. Clica em Novo.</div>';
-  if(bs){
-    const ov=buds.filter(([c,l])=>(cs[c]||0)>l).length;
-    const wn=buds.filter(([c,l])=>{const s=cs[c]||0;return s>l*.8&&s<=l}).length;
-    bs.innerHTML=`<div class="mc" style="margin-bottom:9px"><div class="ml">Orçamentos</div><div class="mv">${buds.length}</div></div><div class="mc" style="margin-bottom:9px;${ov?'background:var(--danger-l)':''}"><div class="ml">Ultrapassados</div><div class="mv ${ov?'r':''}">${ov}</div></div><div class="mc" style="${wn?'background:var(--warn-l)':''}"><div class="ml">Em aviso</div><div class="mv" style="${wn?'color:var(--warn)':''}">${wn}</div></div>`;
-  }
-}
 
-// ── REPORTS ──
 function renderReports(){
   const be=document.getElementById('rep-bars'),le=document.getElementById('rep-lbls');if(!be)return;
   const months=[];for(let i=5;i>=0;i--){let m=S.month-i,y=S.year;while(m<0){m+=12;y--;}months.push({m,y});}
@@ -1155,14 +1184,9 @@ function delRec(id){
 }
 
 // ── BUDGET ──
-function openBudModal(){populateCatSelects();document.getElementById('mo-bud').classList.add('open');}
-function saveBud(){
-  const cat=document.getElementById('bud-cat').value;
-  const val=parseFloat(document.getElementById('bud-val').value);
-  if(!val||val<=0){notify('⚠️ Define um limite válido');return;}
-  S.budgets[cat]=val;closeMo('mo-bud');persistData();updateAll();notify('✅ Orçamento guardado');
-}
-function delBud(cat){delete S.budgets[cat];persistData();updateAll();}
+
+
+
 
 
 // ── CATEGORIES ──
@@ -1247,6 +1271,212 @@ function deleteCategory(name) {
   populateCatSelects();
   persistData();
   notify('🗑 Categoria eliminada');
+}
+
+
+// ── CATEGORIES PAGE ──
+function renderCategoriesPage(){
+  const el = document.getElementById('cat-page-list');
+  if(!el) return;
+  const cats = S.categories || [];
+  if(!cats.length){ el.innerHTML='<div class="empty">Sem categorias.</div>'; return; }
+  el.innerHTML = cats.map(c => `
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f0f0ee">
+      <div style="width:28px;height:28px;border-radius:7px;background:${getCatColor(c)};display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">${getCatEmoji(c)}</div>
+      <div style="flex:1;font-size:13px;font-weight:500">${c}</div>
+      <input type="color" value="${getCatColor(c)}" onchange="updateCatColor('${c}',this.value)" style="width:28px;height:28px;padding:1px 2px;border:none;border-radius:5px;cursor:pointer" title="Alterar cor">
+      <button onclick="deleteCategory('${c}')" class="delbtn" title="Eliminar"><i class="ti ti-trash"></i></button>
+    </div>`).join('');
+}
+
+function addCategoryPage(){
+  const name = document.getElementById('cat-page-name').value.trim();
+  const color = document.getElementById('cat-page-color').value;
+  if(!name){ notify('⚠️ Escreve um nome para a categoria'); return; }
+  if(S.categories.includes(name)){ notify('⚠️ Categoria já existe'); return; }
+  if(!S.categories) S.categories = [];
+  if(!S.categoryColors) S.categoryColors = {};
+  S.categories.push(name);
+  S.categoryColors[name] = color;
+  CATCOL[name] = color;
+  document.getElementById('cat-page-name').value = '';
+  renderCategoriesPage();
+  populateCatSelects();
+  persistData();
+  notify('✅ Categoria adicionada');
+}
+
+function updateCatColor(name, color){
+  if(!S.categoryColors) S.categoryColors = {};
+  S.categoryColors[name] = color;
+  CATCOL[name] = color;
+  renderCategoriesPage();
+  persistData();
+}
+
+// ── ANNUAL BUDGET ──
+let budYear = new Date().getFullYear();
+let budSelectedMonth = new Date().getMonth();
+
+function chgBudYear(d){
+  budYear += d;
+  document.getElementById('bud-year-lbl').textContent = budYear;
+  renderBudget();
+}
+
+function getBudgetKey(year, month){ return year + '_' + month; }
+
+// S.annualBudgets = { "2026_0": {Alimentação:300, Transporte:100,...}, "2026_1": {...} }
+function getMonthBudget(year, month){
+  if(!S.annualBudgets) S.annualBudgets = {};
+  return S.annualBudgets[getBudgetKey(year, month)] || {};
+}
+
+function renderBudget(){
+  document.getElementById('bud-year-lbl').textContent = budYear;
+  const grid = document.getElementById('bud-year-grid');
+  if(!grid) return;
+
+  const MONTHS_SHORT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const now = new Date();
+
+  grid.innerHTML = MONTHS_SHORT.map((m, mi) => {
+    const bud = getMonthBudget(budYear, mi);
+    const budTotal = Object.values(bud).reduce((s,v)=>s+v, 0);
+    const txs = S.transactions.filter(t => {
+      const d = new Date(t.date);
+      return d.getMonth()===mi && d.getFullYear()===budYear && t.type==='expense';
+    });
+    const spent = txs.reduce((s,t)=>s+t.amount, 0);
+    const isCurrent = mi===now.getMonth() && budYear===now.getFullYear();
+    const isSelected = mi===budSelectedMonth && budYear===budYear;
+    const pct = budTotal>0 ? Math.min(100,Math.round(spent/budTotal*100)) : null;
+    const overBudget = budTotal>0 && spent>budTotal;
+    return `<div onclick="selectBudMonth(${mi})" style="background:${isSelected?'var(--accent-l)':'var(--card)'};border:1.5px solid ${isSelected?'var(--accent)':overBudget?'var(--danger)':'var(--border)'};border-radius:10px;padding:14px;cursor:pointer;transition:all .15s">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:13px;font-weight:500;color:${isSelected?'var(--accent-d)':'var(--text)'}">${m}${isCurrent?' ●':''}</span>
+        ${budTotal>0?`<span style="font-size:10px;color:${overBudget?'var(--danger)':'var(--text3)'}">€${Math.round(spent)}/€${Math.round(budTotal)}</span>`:'<span style="font-size:10px;color:var(--text3)">sem orç.</span>'}
+      </div>
+      ${budTotal>0?`<div style="height:4px;background:#f0f0ee;border-radius:2px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${overBudget?'var(--danger)':spent>budTotal*.8?'var(--warn)':'var(--accent)'};border-radius:2px"></div></div>`:''}
+    </div>`;
+  }).join('');
+
+  renderBudgetDetail();
+}
+
+function selectBudMonth(mi){
+  budSelectedMonth = mi;
+  // Sync S.month for consistency
+  S.month = mi;
+  S.year = budYear;
+  updateMonthLabel();
+  renderBudget();
+}
+
+function renderBudgetDetail(){
+  const detail = document.getElementById('bud-month-detail');
+  if(!detail) return;
+  detail.style.display = 'block';
+
+  const title = document.getElementById('bud-detail-title');
+  if(title) title.textContent = MONTHS[budSelectedMonth] + ' ' + budYear;
+
+  const bud = getMonthBudget(budYear, budSelectedMonth);
+  const txs = S.transactions.filter(t => {
+    const d = new Date(t.date);
+    return d.getMonth()===budSelectedMonth && d.getFullYear()===budYear && t.type==='expense';
+  });
+  const catSpend = {};
+  txs.forEach(t=>{ catSpend[t.category]=(catSpend[t.category]||0)+t.amount; });
+
+  // ── Bar chart: real vs budget per category ──
+  const chartEl = document.getElementById('bud-chart');
+  const allCats = [...new Set([...Object.keys(bud), ...Object.keys(catSpend)])];
+  if(allCats.length && chartEl){
+    const maxVal = Math.max(...allCats.map(c=>Math.max(bud[c]||0, catSpend[c]||0)), 1);
+    chartEl.innerHTML = `
+      <div style="display:flex;align-items:flex-end;gap:6px;height:100px;margin-bottom:6px;overflow-x:auto;padding-bottom:4px">
+        ${allCats.map(c=>{
+          const b=bud[c]||0, s=catSpend[c]||0;
+          const bh=Math.max(2,Math.round(b/maxVal*90)), sh=Math.max(2,Math.round(s/maxVal*90));
+          const over = s>b && b>0;
+          return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:40px">
+            <div style="display:flex;align-items:flex-end;gap:2px;height:90px">
+              ${b>0?`<div style="width:14px;height:${bh}px;background:#ddd;border-radius:3px 3px 0 0" title="Orçamento: €${b.toFixed(2)}"></div>`:'<div style="width:14px"></div>'}
+              <div style="width:14px;height:${sh}px;background:${over?'var(--danger)':'var(--accent)'};border-radius:3px 3px 0 0" title="Real: €${s.toFixed(2)}"></div>
+            </div>
+            <div style="font-size:9px;color:var(--text3);text-align:center;max-width:44px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c}</div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="display:flex;gap:14px;margin-bottom:4px">
+        <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2)"><div style="width:10px;height:10px;background:#ddd;border-radius:2px"></div>Orçamento</div>
+        <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2)"><div style="width:10px;height:10px;background:var(--accent);border-radius:2px"></div>Real</div>
+        <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2)"><div style="width:10px;height:10px;background:var(--danger);border-radius:2px"></div>Excedido</div>
+      </div>`;
+  } else if(chartEl){
+    chartEl.innerHTML = '<div class="empty" style="padding:16px">Sem dados para este mês.</div>';
+  }
+
+  // ── Category breakdown ──
+  const bl = document.getElementById('bud-list');
+  const budEntries = Object.entries(bud);
+  if(bl){
+    if(!budEntries.length){
+      bl.innerHTML='<div class="empty">Sem orçamento definido. Clica em "Adicionar categoria".</div>';
+    } else {
+      bl.innerHTML = budEntries.map(([cat,lim])=>{
+        const sp=catSpend[cat]||0, pct=Math.min(100,Math.round(sp/lim*100));
+        const clr=sp>lim?'var(--danger)':sp>lim*.8?'var(--warn)':'var(--accent)';
+        return`<div class="budi">
+          <div class="budh">
+            <span class="budn">${getCatEmoji(cat)} ${cat}</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="budv">${fmt(sp)} / ${fmt(lim)}</span>
+              <button class="delbtn" onclick="delBudCat('${cat}')"><i class="ti ti-trash"></i></button>
+            </div>
+          </div>
+          <div class="budt"><div class="budf" style="width:${pct}%;background:${clr}"></div></div>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  // ── Summary ──
+  const bs = document.getElementById('bud-status');
+  const totalBudgeted = budEntries.reduce((s,[,v])=>s+v,0);
+  const totalSpent = txs.reduce((s,t)=>s+t.amount,0);
+  const totalIncome = S.transactions.filter(t=>{const d=new Date(t.date);return d.getMonth()===budSelectedMonth&&d.getFullYear()===budYear&&t.type==='income'}).reduce((s,t)=>s+t.amount,0);
+  const over = budEntries.filter(([c,l])=>(catSpend[c]||0)>l).length;
+  if(bs) bs.innerHTML=`
+    <div class="mc" style="margin-bottom:9px"><div class="ml">Total orçamentado</div><div class="mv">${fmt(totalBudgeted)}</div></div>
+    <div class="mc" style="margin-bottom:9px"><div class="ml">Total gasto</div><div class="mv r">${fmt(totalSpent)}</div></div>
+    <div class="mc" style="margin-bottom:9px"><div class="ml">Receitas</div><div class="mv g">${fmt(totalIncome)}</div></div>
+    <div class="mc ${over?'style="background:var(--danger-l)"':''}"><div class="ml">Categorias excedidas</div><div class="mv ${over?'r':''}">${over}</div></div>`;
+}
+
+function openBudModal(){
+  populateCatSelects();
+  document.getElementById('mo-bud').classList.add('open');
+}
+
+function saveBud(){
+  const cat=document.getElementById('bud-cat').value;
+  const val=parseFloat(document.getElementById('bud-val').value);
+  if(!cat){notify('⚠️ Seleciona uma categoria');return;}
+  if(!val||val<=0){notify('⚠️ Define um limite válido');return;}
+  if(!S.annualBudgets) S.annualBudgets={};
+  const key=getBudgetKey(budYear,budSelectedMonth);
+  if(!S.annualBudgets[key]) S.annualBudgets[key]={};
+  S.annualBudgets[key][cat]=val;
+  closeMo('mo-bud');persistData();renderBudget();notify('✅ Orçamento guardado');
+}
+
+function delBudCat(cat){
+  if(!S.annualBudgets) return;
+  const key=getBudgetKey(budYear,budSelectedMonth);
+  if(S.annualBudgets[key]) delete S.annualBudgets[key][cat];
+  persistData();renderBudget();
 }
 
 function closeMo(id){
