@@ -718,8 +718,11 @@ async function loadData() {
       S.transactions    = d.transactions    || [];
       S.recurring       = d.recurring       || [];
       S.budgets         = d.budgets         || {};
-      S.categories      = d.categories      || S.categories;
-      S.categoryColors  = d.categoryColors  || {};
+      // Merge categories — keep any local ones not yet saved
+      const remoteCats = d.categories || [];
+      const localCats  = S.categories || [];
+      S.categories = remoteCats.length >= localCats.length ? remoteCats : localCats;
+      S.categoryColors  = {...(d.categoryColors||{}), ...(S.categoryColors||{})};
       S.annualBudgets   = d.annualBudgets   || {};
     } else {
       // First time — seed default accounts
@@ -734,6 +737,7 @@ async function loadData() {
   });
 }
 
+window.persistNow = persistNow;
 window.persistData = function() {
   if(!currentUser) return;
   clearTimeout(saveTimeout);
@@ -752,11 +756,13 @@ window.persistData = function() {
       notify('Erro ao guardar: ' + e.message);
       hideSync();
     }
-  }, 800);
+  }, 300);
 };
 
 async function persistNow() {
   if(!currentUser) return;
+  clearTimeout(saveTimeout);
+  showSync();
   await setDoc(doc(db, 'users', currentUser.uid), {
     accounts:        S.accounts,
     transactions:    S.transactions,
@@ -1260,7 +1266,7 @@ function addCategory() {
   document.getElementById('cat-new-name').value = '';
   renderCatList();
   populateCatSelects();
-  persistData();
+  if(window.persistNow) persistNow(); else persistData();
   notify('✅ Categoria adicionada');
 }
 
@@ -1305,7 +1311,7 @@ function addCategoryPage(){
   document.getElementById('cat-page-name').value = '';
   renderCategoriesPage();
   populateCatSelects();
-  persistData();
+  if(window.persistNow) persistNow(); else persistData();
   notify('✅ Categoria adicionada');
 }
 
@@ -1536,6 +1542,16 @@ function closeMo(id){
 }
 document.querySelectorAll('.mo').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
 document.getElementById('tr-date').value=today();
+
+// Force save before page unloads
+window.addEventListener('beforeunload', () => {
+  if(window.persistData && currentUser) {
+    // Clear debounce and save immediately
+    clearTimeout(saveTimeout);
+    const db_ref = doc(db, 'users', currentUser.uid);
+    navigator.sendBeacon || persistData();
+  }
+});
 </script>
 
 <!-- MODAL: CATEGORIAS -->
