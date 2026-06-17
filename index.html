@@ -730,16 +730,21 @@ async function loadData() {
   unsubscribe = onSnapshot(ref, snap => {
     if (snap.exists()) {
       const d = snap.data();
+      // Don't overwrite local state while actively saving
+      if(window._isSaving) { console.log('onSnapshot skipped: save in progress'); return; }
+      console.log('onSnapshot received categories:', d.categories);
       S.accounts        = d.accounts        || S.accounts;
       S.transactions    = d.transactions    || [];
       S.recurring       = d.recurring       || [];
       S.budgets         = d.budgets         || {};
-      // Merge categories — keep any local ones not yet saved
+      // Always use remote categories if they exist, merge otherwise
       const remoteCats = d.categories || [];
       const localCats  = S.categories || [];
-      S.categories = remoteCats.length >= localCats.length ? remoteCats : localCats;
-      S.categoryColors  = {...(d.categoryColors||{}), ...(S.categoryColors||{})};
+      S.categories = remoteCats.length > 0 ? remoteCats : localCats;
+      // Merge colors: remote first, then local overrides
+      S.categoryColors  = {...(S.categoryColors||{}), ...(d.categoryColors||{})};
       S.annualBudgets   = d.annualBudgets   || {};
+      console.log('onSnapshot final categories:', S.categories);
     } else {
       // First time — seed default accounts
       S.accounts = [
@@ -753,7 +758,9 @@ async function loadData() {
   });
 }
 
-window.persistNow = persistNow;
+window.persistNow = async function() {
+    return persistNow();
+  };
 window.persistData = function() {
   if(!currentUser) return;
   clearTimeout(saveTimeout);
@@ -778,20 +785,34 @@ window.persistData = function() {
   }, 300);
 };
 
+let _isSaving = false;
 async function persistNow() {
-  if(!currentUser) return;
+  if(!currentUser) { console.warn('persistNow: no user'); return; }
   clearTimeout(saveTimeout);
+  _isSaving = true;
   showSync();
-  await setDoc(doc(db, 'users', currentUser.uid), {
-    accounts:        S.accounts,
-    transactions:    S.transactions,
-    recurring:       S.recurring,
-    budgets:         S.budgets,
-    categories:      S.categories,
-    categoryColors:  S.categoryColors || {},
-    annualBudgets:   S.annualBudgets  || {},
-    updatedAt:       new Date().toISOString()
-  });
+  try {
+    const payload = {
+      accounts:        S.accounts        || [],
+      transactions:    S.transactions    || [],
+      recurring:       S.recurring       || [],
+      budgets:         S.budgets         || {},
+      categories:      S.categories      || [],
+      categoryColors:  S.categoryColors  || {},
+      annualBudgets:   S.annualBudgets   || {},
+      updatedAt:       new Date().toISOString()
+    };
+    console.log('persistNow saving categories:', payload.categories);
+    await setDoc(doc(db, 'users', currentUser.uid), payload);
+    console.log('persistNow: saved OK');
+    hideSync();
+  } catch(e) {
+    console.error('persistNow error:', e);
+    notify('❌ Erro ao guardar: ' + e.message);
+    hideSync();
+  } finally {
+    setTimeout(() => { _isSaving = false; }, 1000);
+  }
 }
 
 function showSync() { document.getElementById('sync').classList.add('show'); }
@@ -1330,8 +1351,9 @@ function addCategoryPage(){
   document.getElementById('cat-page-name').value = '';
   renderCategoriesPage();
   populateCatSelects();
-  if(window.persistNow) persistNow(); else persistData();
-  notify('✅ Categoria adicionada');
+  if(window.persistNow) {
+    persistNow().then(()=>notify('✅ Categoria guardada no Firebase')).catch(e=>notify('❌ Erro: '+e.message));
+  } else { persistData(); notify('✅ Categoria adicionada'); }
 }
 
 function updateCatColor(name, color){
