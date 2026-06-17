@@ -506,9 +506,25 @@ input[type=color]{height:36px;padding:2px 4px;cursor:pointer;border-radius:7px}
     <div class="bni" data-page="transactions"><i class="ti ti-list"></i>Movimentos</div>
     <div class="bni" data-page="recurring"><i class="ti ti-refresh"></i>Recorrentes</div>
     <div class="bni" data-page="budget"><i class="ti ti-target"></i>Orçamentos</div>
-    <div class="bni" data-page="reports"><i class="ti ti-chart-bar"></i>Relatórios</div>
+    <div class="bni" id="bni-mais" onclick="toggleMaisMenu()"><i class="ti ti-dots"></i>Mais</div>
   </div>
 </nav>
+
+<!-- MAIS DRAWER -->
+<div id="mais-overlay" onclick="closeMaisMenu()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:88"></div>
+<div id="mais-drawer" style="display:none;position:fixed;bottom:64px;left:0;right:0;background:var(--card);border-top:1px solid var(--border);border-radius:16px 16px 0 0;padding:16px;z-index:89;transform:translateY(100%);transition:transform .25s">
+  <div style="width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div onclick="go('reports');closeMaisMenu()" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px;background:var(--bg);border-radius:10px;cursor:pointer">
+      <i class="ti ti-chart-bar" style="font-size:24px;color:var(--text2)"></i>
+      <span style="font-size:12px;color:var(--text2)">Relatórios</span>
+    </div>
+    <div onclick="go('categories');closeMaisMenu()" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px;background:var(--bg);border-radius:10px;cursor:pointer">
+      <i class="ti ti-tag" style="font-size:24px;color:var(--text2)"></i>
+      <span style="font-size:12px;color:var(--text2)">Categorias</span>
+    </div>
+  </div>
+</div>
 
 <!-- FAB -->
 <div class="fab-area" id="fab-area" style="display:none">
@@ -1580,6 +1596,27 @@ function saveEditCategory(){
   updateAll();
   renderCategoriesPage();
   notify('✅ Categoria atualizada');
+}
+
+
+function toggleMaisMenu(){
+  const drawer = document.getElementById('mais-drawer');
+  const overlay = document.getElementById('mais-overlay');
+  const isOpen = drawer.style.transform === 'translateY(0%)';
+  if(isOpen){ closeMaisMenu(); }
+  else {
+    drawer.style.display = 'block';
+    overlay.style.display = 'block';
+    setTimeout(()=>{ drawer.style.transform = 'translateY(0%)'; }, 10);
+    document.getElementById('bni-mais').classList.add('active');
+  }
+}
+function closeMaisMenu(){
+  const drawer = document.getElementById('mais-drawer');
+  const overlay = document.getElementById('mais-overlay');
+  drawer.style.transform = 'translateY(100%)';
+  document.getElementById('bni-mais').classList.remove('active');
+  setTimeout(()=>{ drawer.style.display='none'; overlay.style.display='none'; }, 250);
 }
 
 function closeMo(id){
