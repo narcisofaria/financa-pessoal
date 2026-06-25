@@ -978,7 +978,7 @@ function go(id){
   if(id==='budget'){budYear=S.year;renderBudget();}
   if(id==='categories')renderCategoriesPage();
   if(id==='transactions')renderTxPage();
-  if(id==='dashboard')renderDash();
+  if(id==='dashboard'){ renderDash(); }
   closeFab();
 }
 document.querySelectorAll('.ni, .bni').forEach(n=>n.addEventListener('click',()=>go(n.dataset.page)));
@@ -1005,6 +1005,8 @@ function updateAll(){
   }
   populateCatSelects();
   updateMonthLabel();
+  // Always re-render calendar if on dashboard
+  if(currentPage === 'dashboard') requestAnimationFrame(() => { renderCalendar(); if(calSelectedDate) selectCalDay(calSelectedDate); });
   if(currentPage==='dashboard')renderDash();
   else if(currentPage==='accounts'){renderAccGrid();renderAccounts();}
   else if(currentPage==='transactions')renderTxPage();
@@ -1042,17 +1044,19 @@ function renderDash(){
   document.getElementById('d-cats').innerHTML=cats.length?cats.map(([n,v])=>`<div class="cati"><div class="catc" style="background:${CATCOL[n]||'#888'}"></div><div class="catn">${n}</div><div class="catbg"><div class="catbf" style="width:${Math.round(v/tot*100)}%;background:${CATCOL[n]||'#888'}"></div></div><div class="catp">${Math.round(v/tot*100)}%</div><div class="catv">${fmt(v)}</div></div>`).join(''):'<div class="empty">Sem gastos.</div>';
   document.getElementById('d-accs').innerHTML=S.accounts.map(a=>`<div style="background:${a.color};border-radius:10px;padding:14px;color:#fff;cursor:pointer" onclick="go('accounts')"><div style="font-size:11px;opacity:.8;margin-bottom:4px">${a.name}</div><div style="font-size:17px;font-weight:600;font-family:var(--font-mono)">${fmt(accBal(a.id))}</div><div style="font-size:11px;opacity:.65;margin-top:2px">${ACTLBL[a.type]||''}</div></div>`).join('')+(S.accounts.length<6?`<div class="acc-add" onclick="openAccModal()"><i class="ti ti-plus"></i>Nova conta</div>`:'');
 
-  // Calendar
-  renderCalendar();
-  // Auto-select today if in current month
-  const todayStr = new Date().toISOString().split('T')[0];
-  const todayMonth = new Date().getMonth();
-  const todayYear = new Date().getFullYear();
-  if(S.month === todayMonth && S.year === todayYear && !calSelectedDate){
-    selectCalDay(todayStr);
-  } else if(calSelectedDate) {
-    selectCalDay(calSelectedDate);
-  }
+  // Calendar - use rAF to ensure DOM is ready
+  requestAnimationFrame(() => {
+    renderCalendar();
+    // Auto-select today if in current month
+    const todayStr2 = new Date().toISOString().split('T')[0];
+    const todayMonth2 = new Date().getMonth();
+    const todayYear2 = new Date().getFullYear();
+    if(S.month === todayMonth2 && S.year === todayYear2 && !calSelectedDate){
+      selectCalDay(todayStr2);
+    } else if(calSelectedDate){
+      selectCalDay(calSelectedDate);
+    }
+  });
 }
 
 // ── HELPERS ──
