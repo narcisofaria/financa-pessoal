@@ -987,6 +987,7 @@ function txRow(t){
       <div class="txd">${fmtDate(t.date)} · ${t.type==='transfer'?acc.name+' → '+getAcc(t.toAccount||'').name:acc.name}</div>
     </div>
     <div class="txa ${cls}">${sign}${fmt(t.amount)}</div>
+    <button onclick="openEditTx('${t.id}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:3px;flex-shrink:0"><i class="ti ti-edit"></i></button>
   </div>`;
 }
 
@@ -1042,7 +1043,10 @@ function renderTxPage(){
     <td>${t.category||''}</td>
     <td><span class="chip ${t.type==='income'?'chi':t.type==='transfer'?'cht':'che'}">${t.type==='income'?'Receita':t.type==='transfer'?'Transferência':'Gasto'}</span></td>
     <td style="color:${t.type==='income'?'var(--accent)':t.type==='transfer'?'var(--blue)':'var(--danger)'};font-weight:500;font-family:var(--font-mono)">${t.type==='income'?'+':t.type==='transfer'?'↔':'-'}${fmt(t.amount)}</td>
-    <td><button class="delbtn" onclick="delTx('${t.id}')"><i class="ti ti-trash"></i></button></td>
+    <td style="display:flex;gap:4px">
+      <button class="delbtn" onclick="openEditTx('${t.id}')" style="color:var(--accent)"><i class="ti ti-edit"></i></button>
+      <button class="delbtn" onclick="delTx('${t.id}')"><i class="ti ti-trash"></i></button>
+    </td>
   </tr>`).join('');
 }
 
@@ -1645,6 +1649,78 @@ function closeMaisMenu(){
   setTimeout(()=>{ drawer.style.display='none'; overlay.style.display='none'; }, 250);
 }
 
+
+// ── EDIT TRANSACTION ──
+let _editTxType = 'expense';
+
+function openEditTx(id){
+  const t = S.transactions.find(t => t.id === id);
+  if(!t) return;
+  if(t.type === 'transfer'){ notify('⚠️ Transferências não são editáveis. Apaga e cria nova.'); return; }
+  _editTxType = t.type;
+  document.getElementById('etx-id').value = id;
+  document.getElementById('etx-desc').value = t.desc || '';
+  document.getElementById('etx-val').value = t.amount;
+  document.getElementById('etx-date').value = t.date;
+
+  // Populate selects
+  const accSel = document.getElementById('etx-acc');
+  accSel.innerHTML = S.accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+  accSel.value = t.account;
+
+  const catSel = document.getElementById('etx-cat');
+  const cats = S.categories || [];
+  catSel.innerHTML = cats.map(c => `<option value="${c}">${getCatEmoji(c)} ${c}</option>`).join('');
+  if(t.category) catSel.value = t.category;
+
+  // Set type buttons
+  setEditType(t.type);
+
+  // Show/hide category
+  const catField = document.getElementById('etx-cat-field');
+  if(catField) catField.classList.toggle('hide-field', t.type === 'income');
+
+  document.getElementById('mo-edit-tx').classList.add('open');
+}
+
+function setEditType(t){
+  _editTxType = t;
+  document.getElementById('etb-exp').className = 'ttb' + (t==='expense' ? ' ae' : '');
+  document.getElementById('etb-inc').className = 'ttb' + (t==='income' ? ' ai' : '');
+  const catField = document.getElementById('etx-cat-field');
+  if(catField) catField.classList.toggle('hide-field', t === 'income');
+}
+
+function saveEditTx(){
+  const id  = document.getElementById('etx-id').value;
+  const desc = document.getElementById('etx-desc').value.trim();
+  const val  = parseFloat(document.getElementById('etx-val').value);
+  const date = document.getElementById('etx-date').value;
+  const acc  = document.getElementById('etx-acc').value;
+  const cat  = _editTxType === 'income' ? 'Receita' : document.getElementById('etx-cat').value;
+
+  if(!val || val <= 0 || !date || !acc){ notify('⚠️ Preenche o valor e a data'); return; }
+  if(_editTxType !== 'income' && !cat){ notify('⚠️ Seleciona uma categoria'); return; }
+
+  const idx = S.transactions.findIndex(t => t.id === id);
+  if(idx === -1){ notify('⚠️ Transação não encontrada'); return; }
+
+  S.transactions[idx] = {
+    ...S.transactions[idx],
+    type: _editTxType,
+    account: acc,
+    desc: desc || (_editTxType === 'income' ? 'Receita' : 'Despesa'),
+    amount: val,
+    category: cat,
+    date
+  };
+
+  closeMo('mo-edit-tx');
+  persistData();
+  updateAll();
+  notify('✅ Transação atualizada');
+}
+
 function closeMo(id){
   document.getElementById(id).classList.remove('open');
   // Reopen previous modal if we came from one
@@ -1719,6 +1795,33 @@ window.addEventListener('beforeunload', () => {
     <div class="mact">
       <button class="bcan" onclick="closeMo('mo-edit-cat')">Cancelar</button>
       <button class="bpri" onclick="saveEditCategory()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- MODAL: EDITAR TRANSAÇÃO -->
+<div class="mo" id="mo-edit-tx">
+  <div class="mbox">
+    <div class="mt">Editar transação</div>
+    <div class="typetog">
+      <button class="ttb ae" id="etb-exp" onclick="setEditType('expense')"><i class="ti ti-arrow-up-circle"></i> Gasto</button>
+      <button class="ttb" id="etb-inc" onclick="setEditType('income')"><i class="ti ti-arrow-down-circle"></i> Receita</button>
+    </div>
+    <div class="f"><label>Conta</label><select id="etx-acc"></select></div>
+    <div class="f"><label>Descrição</label><input type="text" id="etx-desc" placeholder="Ex: Supermercado..."></div>
+    <div class="f"><label>Valor (€)</label><input type="number" id="etx-val" min="0" step="0.01"></div>
+    <div class="f" id="etx-cat-field">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <label style="margin-bottom:0">Categoria</label>
+      </div>
+      <select id="etx-cat"></select>
+    </div>
+    <div class="f"><label>Data</label><input type="date" id="etx-date"></div>
+    <input type="hidden" id="etx-id">
+    <div class="mact">
+      <button class="bcan" onclick="closeMo('mo-edit-tx')">Cancelar</button>
+      <button class="bpri" onclick="saveEditTx()">Guardar</button>
     </div>
   </div>
 </div>
