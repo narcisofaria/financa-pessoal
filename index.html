@@ -730,26 +730,21 @@ async function loadData() {
   unsubscribe = onSnapshot(ref, snap => {
     if (snap.exists()) {
       const d = snap.data();
-      // Don't overwrite local state while actively saving
-      if(window._isSaving) { console.log('onSnapshot skipped: save in progress'); return; }
+      // Load fresh data from Firebase
       console.log('onSnapshot received categories:', d.categories);
       S.accounts        = d.accounts        || S.accounts;
       S.transactions    = d.transactions    || [];
       S.recurring       = d.recurring       || [];
       S.budgets         = d.budgets         || {};
       // Always use remote categories if they exist, merge otherwise
-      // Load categories - if none in Firebase, extract from transactions
+      // Load categories safely - never auto-save, never overwrite with less data
       const remoteCats = d.categories || [];
       if(remoteCats.length > 0) {
         S.categories = remoteCats;
       } else {
-        // Auto-discover categories from existing transactions
-        const txCats = [...new Set((d.transactions||[]).map(t=>t.category).filter(Boolean))];
+        // Keep defaults, do NOT auto-save (avoid overwriting Firebase)
         const defaultCats = ['Alimentação','Transporte','Habitação','Saúde','Lazer','Educação','Vestuário','Salário','Freelance','Investimento','Outro'];
-        S.categories = [...new Set([...defaultCats, ...txCats])];
-        console.log('Auto-seeded categories from transactions:', S.categories);
-        // Save immediately so they persist
-        setTimeout(() => { if(window.persistNow) persistNow(); }, 500);
+        S.categories = defaultCats;
       }
       S.categoryColors  = {...(S.categoryColors||{}), ...(d.categoryColors||{})};
       S.annualBudgets   = d.annualBudgets   || {};
