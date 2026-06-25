@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<title>Restaurar dados — Finança</title>
+<style>
+  body{font-family:system-ui;max-width:500px;margin:60px auto;padding:20px;text-align:center;background:#f5f5f3}
+  .card{background:#fff;border-radius:14px;padding:32px;box-shadow:0 2px 16px rgba(0,0,0,.1)}
+  h1{font-size:20px;margin-bottom:8px;color:#111}
+  p{color:#666;font-size:14px;margin-bottom:24px;line-height:1.5}
+  .btn{background:#1D9E75;color:#fff;border:none;border-radius:9px;padding:14px 28px;font-size:15px;font-weight:600;cursor:pointer;width:100%}
+  .btn:hover{background:#0F6E56}
+  .btn:disabled{background:#ccc;cursor:not-allowed}
+  .status{margin-top:16px;font-size:14px;padding:12px;border-radius:8px;display:none}
+  .status.ok{background:#E1F5EE;color:#0F6E56;display:block}
+  .status.err{background:#FCEBEB;color:#A32D2D;display:block}
+  .status.loading{background:#E6F1FB;color:#185FA5;display:block}
+  .ico{font-size:48px;margin-bottom:16px}
+  ul{text-align:left;font-size:13px;color:#555;margin:16px 0;padding-left:20px}
+  ul li{margin-bottom:4px}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="ico">🔄</div>
+  <h1>Restaurar dados</h1>
+  <p>Esta página vai restaurar todos os teus dados no Firebase.</p>
+  <ul>
+    <li>4 contas (Conta Corrente, Poupança, Investimentos, Despesas carros)</li>
+    <li>44 transações de Junho 2026</li>
+    <li>1 recorrente (Telemovel)</li>
+    <li>26 categorias personalizadas</li>
+  </ul>
+  <p><strong>Tens de estar autenticado com o Google.</strong><br>Se não estiveres, faz login primeiro na app principal.</p>
+  <button class="btn" id="btn" onclick="restore()">Restaurar dados agora</button>
+  <div class="status" id="status"></div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, doc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyB3BuOpaYwXHHIvuzZUfLcI_-bMOfROaAI",
+  authDomain: "financa-pessoal-1c230.firebaseapp.com",
+  projectId: "financa-pessoal-1c230",
+  storageBucket: "financa-pessoal-1c230.firebasestorage.app",
+  messagingSenderId: "819413327046",
+  appId: "1:819413327046:web:d1885008239af48bc08bc7"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const data = {
+  accounts: [
+    {id:"acc1",name:"Conta Corrente",type:"checking",initialBalance:0,color:"#1D9E75"},
+    {id:"acc2",name:"Poupança",type:"savings",initialBalance:300,color:"#378add"},
+    {id:"mpqyfqvdh9zc",name:"Investimentos",type:"investment",initialBalance:2595,color:"#0000ff"},
+    {id:"mpqyg6isvos6",name:"Despesas carros",type:"savings",initialBalance:450,color:"#ffff00"}
+  ],
+  budgets: {},
+  annualBudgets: {},
+  categories: [
+    "Alimentação","Transporte","Habitação","Saúde","Lazer","Educação","Vestuário",
+    "Salário","Freelance","Investimento","Outro","Telemovel","Portagens",
+    "Gastos pessoais","Casa","Euromilhões","Antonio","António","Lavandaria",
+    "Carro","Carros","Ginasio","Combustivel","Donativos","Presentes","Poupança"
+  ],
+  categoryColors: {},
+  recurring: [{
+    id:"mpr1zs7ejahu",name:"telemovel",type:"expense",account:"acc1",
+    amount:20,category:"Telemovel",freq:"monthly",day:1,startDate:"2025-11-01",
+    skipDates:["2025-11-01","2025-12-01","2026-01-01","2026-02-01","2026-03-01","2026-04-01","2026-05-01"]
+  }],
+  transactions: [
+    {id:"mputcvnovuhf",type:"expense",account:"acc1",amount:20,category:"Telemovel",date:"2026-06-01",desc:"telemovel (auto)",auto:true,recurringId:"mpr1zs7ejahu"},
+    {id:"mputdn17svs2",type:"expense",account:"acc1",amount:60,category:"Alimentação",date:"2026-06-01",desc:"Ajuda alimentação mae"},
+    {id:"mputfrhz84w8",type:"expense",account:"acc1",amount:85,category:"Alimentação",date:"2026-06-01",desc:"Gasóleo bmw"},
+    {id:"mputgvcza8lw",type:"income",account:"acc1",amount:2800,category:"Receita",date:"2026-06-01",desc:"Salario"},
+    {id:"mputi3v7btlm",type:"expense",account:"acc1",amount:1100,category:"Poupança",date:"2026-06-01",desc:"Poupança casal"},
+    {id:"mputixcuagw5",type:"transfer",account:"acc1",toAccount:"acc2",amount:100,date:"2026-06-01",desc:"Transferência"},
+    {id:"mpwasvdzhkoa",type:"expense",account:"acc1",amount:11.5,category:"Portagens",date:"2026-06-02",desc:"Ponte lima"},
+    {id:"mpweonjf35ul",type:"expense",account:"acc1",amount:12,category:"Gastos pessoais",date:"2026-06-02",desc:"Woop"},
+    {id:"mpwt9lkw5jbl",type:"expense",account:"acc1",amount:22.43,category:"Casa",date:"2026-06-26",desc:"Eletricidade"},
+    {id:"mpxripmcwk4g",type:"expense",account:"acc1",amount:1.97,category:"Euromilhões",date:"2026-06-03",desc:"Despesa"},
+    {id:"mpz6br41rck8",type:"expense",account:"acc1",amount:35,category:"Antonio",date:"2026-06-04",desc:"Fisio"},
+    {id:"mpzor007rer9",type:"expense",account:"acc1",amount:51.98,category:"Vestuário",date:"2026-06-04",desc:"Despesa"},
+    {id:"mq0ubmn6i4jp",type:"expense",account:"acc1",amount:5.5,category:"Lavandaria",date:"2026-06-04",desc:"Despesa"},
+    {id:"mq0y5k106c6n",type:"expense",account:"acc1",amount:20.35,category:"Alimentação",date:"2026-06-05",desc:"Francesinha"},
+    {id:"mq2rhf9vxwpw",type:"expense",account:"acc1",amount:12,category:"Portagens",date:"2026-06-06",desc:"Despesa"},
+    {id:"mq2ri47jz33n",type:"expense",account:"acc1",amount:11,category:"Alimentação",date:"2026-06-06",desc:"Jantar"},
+    {id:"mq2rjoljn6co",type:"expense",account:"acc1",amount:2.5,category:"Carro",date:"2026-06-06",desc:"Lavar"},
+    {id:"mq2rk5fzuj4z",type:"expense",account:"acc1",amount:0.9,category:"Lazer",date:"2026-06-06",desc:"Cafe"},
+    {id:"mq40tkuu6tg6",type:"expense",account:"acc1",amount:28,category:"Alimentação",date:"2026-06-07",desc:"Lidl"},
+    {id:"mq6lmawljbxy",type:"expense",account:"acc1",amount:210,category:"Vestuário",date:"2026-06-09",desc:"Roupa casamento"},
+    {id:"mq6lmt7qpz5g",type:"expense",account:"acc1",amount:115,category:"Vestuário",date:"2026-06-09",desc:"Sapatilhas"},
+    {id:"mq71je8o03va",type:"expense",account:"acc1",amount:42.5,category:"Lazer",date:"2026-06-09",desc:"Jantar"},
+    {id:"mq83ss7ur4y2",type:"expense",account:"acc1",amount:5,category:"Lazer",date:"2026-06-10",desc:"Crepe"},
+    {id:"mq83ulebwfw1",type:"expense",account:"acc1",amount:55,category:"Ginasio",date:"2026-06-10",desc:"Despesa"},
+    {id:"mq8ak623qdl1",type:"expense",account:"acc1",amount:9.29,category:"Alimentação",date:"2026-06-10",desc:"Peixe"},
+    {id:"mq9xocdzj1h0",type:"expense",account:"acc1",amount:28,category:"Lazer",date:"2026-06-11",desc:"Óculos e touca"},
+    {id:"mqb1x8i9wpnp",type:"expense",account:"acc1",amount:45,category:"Combustivel",date:"2026-06-12",desc:"Despesa"},
+    {id:"mqh3xq3defa5",type:"expense",account:"acc1",amount:11.5,category:"Portagens",date:"2026-06-16",desc:"Despesa"},
+    {id:"mqi853lqisae",type:"expense",account:"acc1",amount:11.9,category:"Donativos",date:"2026-06-17",desc:"Maratona Miguel vasques"},
+    {id:"mql2130m4jsq",type:"expense",account:"acc1",amount:350,category:"Presentes",date:"2026-06-19",desc:"Prenda casamento Tiago"},
+    {id:"mqn2t5cbikpi",type:"expense",account:"acc1",amount:45,category:"António",date:"2026-06-21",desc:"Osteopata"},
+    {id:"mqn2txyxuyas",type:"expense",account:"acc1",amount:15,category:"Lazer",date:"2026-06-21",desc:"Jantar"},
+    {id:"mqpn3zb5hkj2",type:"expense",account:"acc1",amount:150,category:"Lazer",date:"2026-06-22",desc:"Fato natação"},
+    {id:"mqpn81thjgzn",type:"expense",account:"acc1",amount:0.9,category:"Lazer",date:"2026-06-21",desc:"Cafe"},
+    {id:"mqpn8k023wd3",type:"expense",account:"acc1",amount:2.1,category:"António",date:"2026-06-22",desc:"Estacionamento"},
+    {id:"mqpn98exp5uq",type:"expense",account:"acc1",amount:3,category:"Carros",date:"2026-06-22",desc:"Lavar carro"},
+    {id:"mqq9wibawmm5",type:"transfer",account:"acc2",toAccount:"acc1",amount:100,date:"2026-06-23",desc:"Transferência"},
+    {id:"mqr1hzwen3wk",type:"expense",account:"acc1",amount:14,category:"Habitação",date:"2026-06-23",desc:"Sementes coqueiros"},
+    {id:"mqs6d4sv9h97",type:"expense",account:"acc1",amount:20,category:"Telemovel",date:"2025-12-01",desc:"telemovel (auto)",auto:true,recurringId:"mpr1zs7ejahu"},
+    {id:"mqs6d4svmqu0",type:"expense",account:"acc1",amount:20,category:"Telemovel",date:"2026-01-01",desc:"telemovel (auto)",auto:true,recurringId:"mpr1zs7ejahu"},
+    {id:"mqs6d4sv9fgk",type:"expense",account:"acc1",amount:20,category:"Telemovel",date:"2026-02-01",desc:"telemovel (auto)",auto:true,recurringId:"mpr1zs7ejahu"},
+    {id:"mqs6d4svcd6k",type:"expense",account:"acc1",amount:20,category:"Telemovel",date:"2026-03-01",desc:"telemovel (auto)",auto:true,recurringId:"mpr1zs7ejahu"},
+    {id:"mqs6d4svid5q",type:"expense",account:"acc1",amount:20,category:"Telemovel",date:"2026-04-01",desc:"telemovel (auto)",auto:true,recurringId:"mpr1zs7ejahu"},
+    {id:"mqs6d4svk38v",type:"expense",account:"acc1",amount:20,category:"Telemovel",date:"2026-05-01",desc:"telemovel (auto)",auto:true,recurringId:"mpr1zs7ejahu"}
+  ],
+  updatedAt: new Date().toISOString()
+};
+
+function setStatus(msg, type) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = 'status ' + type;
+}
+
+let currentUser = null;
+onAuthStateChanged(auth, user => {
+  currentUser = user;
+  if(user) {
+    setStatus('✅ Autenticado como ' + user.email + ' — pronto para restaurar.', 'ok');
+  } else {
+    setStatus('⚠️ Não estás autenticado. Clica no botão para fazer login e restaurar.', 'err');
+  }
+});
+
+window.restore = async function() {
+  const btn = document.getElementById('btn');
+  btn.disabled = true;
+  setStatus('A autenticar...', 'loading');
+  try {
+    if(!currentUser) {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      currentUser = result.user;
+    }
+    setStatus('A restaurar dados no Firebase...', 'loading');
+    await setDoc(doc(db, 'users', currentUser.uid), data);
+    setStatus('✅ Dados restaurados com sucesso! Podes fechar esta página e abrir a app.', 'ok');
+    btn.textContent = '✅ Restaurado!';
+  } catch(e) {
+    setStatus('❌ Erro: ' + e.message, 'err');
+    btn.disabled = false;
+  }
+};
+</script>
+</body>
+</html>
