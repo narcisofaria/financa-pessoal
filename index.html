@@ -973,7 +973,7 @@ function go(id){
   document.getElementById('p-'+id).classList.add('active');
   currentPage=id;
   if(id==='reports')renderReports();
-  if(id==='accounts'){renderAccGrid();renderAccounts();}
+  if(id==='accounts'){renderAccGrid();renderAccounts();populateAccSelects();}
   if(id==='recurring')renderRecurring();
   if(id==='budget'){budYear=S.year;renderBudget();}
   if(id==='categories')renderCategoriesPage();
@@ -1095,6 +1095,7 @@ function renderAccGrid(){
   </div>`).join('')+'<div class="acc-add" onclick="openAccModal()"><i class="ti ti-plus"></i>Nova conta</div>';
 }
 function renderAccounts(){
+  populateAccSelects();
   const hist=S.transactions.filter(t=>t.type==='transfer').sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,8);
   const th=document.getElementById('tr-hist');if(!th)return;
   th.innerHTML=hist.length?hist.map(t=>`<div class="txi">
