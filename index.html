@@ -1943,7 +1943,7 @@ function selectCalDay(dateStr){
         </div>
         <div class="txa ${cls}">${sign}${fmt(t.amount)}</div>
         <div style="display:flex;gap:2px;flex-shrink:0">
-          ${t.type!=='transfer'?`<button onclick="openEditTx('${t.id}')" class="delbtn" style="color:var(--accent)"><i class="ti ti-edit"></i></button>`:''}
+          <button onclick="openEditTx('${t.id}')" class="delbtn" style="color:var(--accent)"><i class="ti ti-edit"></i></button>
           <button onclick="delTx('${t.id}')" class="delbtn"><i class="ti ti-trash"></i></button>
         </div>
       </div>`;
